@@ -2,8 +2,13 @@ import type { Feedback, FeedbackFormData } from "./types"
 
 const STORAGE_KEY = "feedback_data"
 
+// In-memory storage untuk server-side
+let feedbackData: Feedback[] = []
+
 export function getAllFeedback(): Feedback[] {
-  if (typeof window === "undefined") return []
+  if (typeof window === "undefined") {
+    return [...feedbackData]
+  }
 
   try {
     const data = localStorage.getItem(STORAGE_KEY)
@@ -22,10 +27,11 @@ export function addFeedback(formData: FeedbackFormData): Feedback {
     status: "open",
   }
 
-  const allFeedback = getAllFeedback()
-  allFeedback.push(feedback)
-
-  if (typeof window !== "undefined") {
+  if (typeof window === "undefined") {
+    feedbackData.push(feedback)
+  } else {
+    const allFeedback = getAllFeedback()
+    allFeedback.push(feedback)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(allFeedback))
   }
 
@@ -33,29 +39,37 @@ export function addFeedback(formData: FeedbackFormData): Feedback {
 }
 
 export function updateFeedback(id: string, updates: Partial<Feedback>): Feedback | null {
-  const allFeedback = getAllFeedback()
-  const index = allFeedback.findIndex((f) => f.id === id)
+  if (typeof window === "undefined") {
+    const index = feedbackData.findIndex((f) => f.id === id)
 
-  if (index === -1) return null
+    if (index === -1) return null
 
-  allFeedback[index] = { ...allFeedback[index], ...updates }
+    feedbackData[index] = { ...feedbackData[index], ...updates }
+    return feedbackData[index]
+  } else {
+    const allFeedback = getAllFeedback()
+    const index = allFeedback.findIndex((f) => f.id === id)
 
-  if (typeof window !== "undefined") {
+    if (index === -1) return null
+
+    allFeedback[index] = { ...allFeedback[index], ...updates }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(allFeedback))
+    return allFeedback[index]
   }
-
-  return allFeedback[index]
 }
 
 export function deleteFeedback(id: string): boolean {
-  const allFeedback = getAllFeedback()
-  const filtered = allFeedback.filter((f) => f.id !== id)
+  if (typeof window === "undefined") {
+    const initialLength = feedbackData.length
+    feedbackData = feedbackData.filter((f) => f.id !== id)
+    return feedbackData.length < initialLength
+  } else {
+    const allFeedback = getAllFeedback()
+    const filtered = allFeedback.filter((f) => f.id !== id)
 
-  if (filtered.length === allFeedback.length) return false
+    if (filtered.length === allFeedback.length) return false
 
-  if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered))
+    return true
   }
-
-  return true
 }
